@@ -9,6 +9,8 @@
 #ifndef msgpack_test_ca_msgpack_h
 #define msgpack_test_ca_msgpack_h
 
+#define BOOST_PP_VARIADICS 1
+
 #include "MsgPack.h"
 #include <iostream>
 #include <vector>
@@ -19,6 +21,20 @@
 namespace ca_msgpack {
 
 	typedef std::unique_ptr<MsgPack::Element> Element;
+
+	class EndianUtil {
+	private:
+		EndianUtil();
+	public:
+		template <class T>
+		static T change(T in) {
+			T out;
+			for (unsigned i = 0; i < sizeof(T); i++) {
+				((char*)&out)[i] = ((char*)&in)[sizeof(T)-i-1];
+			}
+			return out;
+		}
+	};
 
 	class MsgPackError {
 	};
@@ -31,27 +47,27 @@ namespace ca_msgpack {
 			_serializer << _value;
 		}
 		void serializeValue(int32_t value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number((int64_t)value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change((int64_t)value)));
 			_serializer << _value;
 		}
 		void serializeValue(uint32_t value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number((uint64_t)value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change((uint64_t)value)));
 			_serializer << _value;
 		}
 		void serializeValue(int64_t value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change(value)));
 			_serializer << _value;
 		}
 		void serializeValue(uint64_t value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change(value)));
 			_serializer << _value;
 		}
 		void serializeValue(float value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change(value)));
 			_serializer << _value;
 		}
 		void serializeValue(double value) {
-			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(value));
+			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number(EndianUtil::change(value)));
 			_serializer << _value;
 		}
 		void serializeValue(bool value) {
@@ -94,6 +110,7 @@ namespace ca_msgpack {
 
 	class MapDeserializer {
 	private:
+		typedef void (MapDeserializer::*INIT_MEMBER_FUNC)(void*);
 		typedef void (MapDeserializer::*ADD_MEMBER_FUNC)(const char*, const char*, void*);
 		enum class Type {
 			Integer32, Integer32U, Integer64, Integer64U,
@@ -102,9 +119,11 @@ namespace ca_msgpack {
 		struct Member {
 			Type type;
 			void* obj;
-			ADD_MEMBER_FUNC func;
+			INIT_MEMBER_FUNC initFunc;
+			ADD_MEMBER_FUNC addFunc;
 			Member() {}
-			Member(Type type, void* obj, ADD_MEMBER_FUNC func = NULL) : type(type), obj(obj), func(func) {}
+			Member(Type type, void* obj, INIT_MEMBER_FUNC initFunc = NULL, ADD_MEMBER_FUNC addFunc = NULL)
+				: type(type), obj(obj), initFunc(initFunc), addFunc(addFunc) {}
 		};
 		MsgPack::Deserializer& _deserializer;
 		std::map<std::string, Member> _members;
@@ -136,15 +155,17 @@ namespace ca_msgpack {
 		}
 		void parseArray(Element& header, const char* dir, Member& member) {
 			uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
+			(this->*member.initFunc)(member.obj);
 			for (uint32_t i = 0; i < len; i++) {
 				std::ostringstream key;
 				key << dir << i;
-				(this->*member.func)(key.str().c_str(), NULL, member.obj);
+				(this->*member.addFunc)(key.str().c_str(), NULL, member.obj);
 				value(key.str().c_str());
 			}
 		}
 		void parseMap(Element& header, const char* dir, Member& member) {
 			uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
+			(this->*member.initFunc)(member.obj);
 			for (uint32_t i = 0; i < len; i++) {
 				Element key;
 				_deserializer.deserialize(key, false);
@@ -154,29 +175,44 @@ namespace ca_msgpack {
 				}
 				std::ostringstream keyStr;
 				keyStr << dir << (*key);
-				(this->*member.func)(keyStr.str().c_str(), static_cast<MsgPack::String*>(key.get())->getStr().c_str(), member.obj);
+				(this->*member.addFunc)(keyStr.str().c_str(), static_cast<MsgPack::String*>(key.get())->getStr().c_str(), member.obj);
 				value(keyStr.str().c_str());
+			}
+		}
+		template <class T>
+		void parseNumber(Element& element, Member& member) {
+			T& obj = *(T*)member.obj;
+			switch(element->getType()) {
+#define __CAMP_PARSE_NUMBER__(type) (T)EndianUtil::change(static_cast<MsgPack::Number*>(element.get())->getValue<type>())
+				case MsgPack::Type::FIXINT:
+				case MsgPack::Type::INT_8: obj = __CAMP_PARSE_NUMBER__(int8_t); break;
+				case MsgPack::Type::INT_16: obj = __CAMP_PARSE_NUMBER__(int16_t); break;
+				case MsgPack::Type::INT_32: obj = __CAMP_PARSE_NUMBER__(int32_t); break;
+				case MsgPack::Type::INT_64: obj = __CAMP_PARSE_NUMBER__(int64_t); break;
+				case MsgPack::Type::FIXUINT:
+				case MsgPack::Type::UINT_8: obj = __CAMP_PARSE_NUMBER__(uint8_t); break;
+				case MsgPack::Type::UINT_16: obj = __CAMP_PARSE_NUMBER__(uint16_t); break;
+				case MsgPack::Type::UINT_32: obj = __CAMP_PARSE_NUMBER__(uint32_t); break;
+				case MsgPack::Type::UINT_64: obj = __CAMP_PARSE_NUMBER__(uint64_t); break;
+				case MsgPack::Type::FLOAT_32: obj = __CAMP_PARSE_NUMBER__(float); break;
+				case MsgPack::Type::FLOAT_64: obj = __CAMP_PARSE_NUMBER__(double); break;
+				default: throw ca_msgpack::MsgPackError();
+#undef __CAMP_PARSE_NUMBER__
 			}
 		}
 		void parseValue(Element& element, Member& member) {
 			if (member.type == Type::Integer32) {
-				int32_t& obj = *(int32_t*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<int32_t>();
+				parseNumber<int32_t>(element, member);
 			} else if (member.type == Type::Integer32U) {
-				uint32_t& obj = *(uint32_t*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<uint32_t>();
+				parseNumber<uint32_t>(element, member);
 			} else if (member.type == Type::Integer64) {
-				int64_t& obj = *(int64_t*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<int64_t>();
+				parseNumber<int64_t>(element, member);
 			} else if (member.type == Type::Integer64U) {
-				uint64_t& obj = *(uint64_t*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<uint64_t>();
+				parseNumber<uint64_t>(element, member);
 			} else if (member.type == Type::Float) {
-				float& obj = *(float*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<float>();
+				parseNumber<float>(element, member);
 			} else if (member.type == Type::Double) {
-				double& obj = *(double*)member.obj;
-				obj = static_cast<MsgPack::Number*>(element.get())->getValue<double>();
+				parseNumber<double>(element, member);
 			} else if (member.type == Type::Boolean) {
 				bool& obj = *(bool*)member.obj;
 				obj = static_cast<MsgPack::Primitive*>(element.get())->getValue();
@@ -212,11 +248,21 @@ namespace ca_msgpack {
 			}
 		}
 		template <class T>
+		void initArray(void* p) {
+			std::vector<T>& array = *(std::vector<T>*)p;
+			array.clear();
+		}
+		template <class T>
 		void addArray(const char* key, const char* shortKey, void* p) {
 			std::vector<T>& array = *(std::vector<T>*)p;
 			size_t index = array.size();
 			array.push_back(std::move(T()));
 			addMember(key, &array[index]);
+		}
+		template <class T>
+		void initMap(void* p) {
+			std::map<std::string, T>& map = *(std::map<std::string, T>*)p;
+			map.clear();
 		}
 		template <class T>
 		void addMap(const char* key, const char* shortKey, void* p) {
@@ -242,6 +288,9 @@ namespace ca_msgpack {
 		void addMember(const char* key, float* obj) {
 			_members[key] = Member(Type::Float, obj);
 		}
+		void addMember(const char* key, double* obj) {
+			_members[key] = Member(Type::Double, obj);
+		}
 		void addMember(const char* key, bool* obj) {
 			_members[key] = Member(Type::Boolean, obj);
 		}
@@ -250,11 +299,11 @@ namespace ca_msgpack {
 		}
 		template <class T>
 		void addMember(const char* key, std::vector<T>* obj) {
-			_members[key] = Member(Type::Array, obj, &MapDeserializer::addArray<T>);
+			_members[key] = Member(Type::Array, obj, &MapDeserializer::initArray<T>, &MapDeserializer::addArray<T>);
 		}
 		template <class T>
 		void addMember(const char* key, std::map<std::string, T>* obj) {
-			_members[key] = Member(Type::Map, obj, &MapDeserializer::addMap<T>);
+			_members[key] = Member(Type::Map, obj, &MapDeserializer::initMap<T>, &MapDeserializer::addMap<T>);
 		}
 		template <class T>
 		void addMember(const char* key, T* obj) {
