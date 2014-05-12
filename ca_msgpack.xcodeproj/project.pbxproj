@@ -44,6 +44,7 @@
 		0916F38C19205A1F0002D8C1 /* StreamManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StreamManager.h; sourceTree = "<group>"; };
 		0916F39319205A1F0002D8C1 /* MsgPack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MsgPack.cpp; sourceTree = "<group>"; };
 		0916F3C419205A880002D8C1 /* sample.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sample.cpp; sourceTree = "<group>"; };
+		0916F3C619205C1D0002D8C1 /* ca_msgpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ca_msgpack.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +78,7 @@
 		0916F2A7192059670002D8C1 /* ca_msgpack */ = {
 			isa = PBXGroup;
 			children = (
+				0916F3C619205C1D0002D8C1 /* ca_msgpack.h */,
 				0916F3C419205A880002D8C1 /* sample.cpp */,
 				0916F2AA192059670002D8C1 /* ca_msgpack.1 */,
 			);
