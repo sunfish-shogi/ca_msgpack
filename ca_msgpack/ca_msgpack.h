@@ -22,6 +22,9 @@ namespace ca_msgpack {
 
 	typedef std::unique_ptr<MsgPack::Element> Element;
 
+	/**
+	 * pack/unpack 中に継続不能なエラーが発生した時に投げられる例外クラス
+	 */
 	class MsgPackError {
 	private:
 		std::shared_ptr<std::string> _message;
@@ -39,13 +42,19 @@ namespace ca_msgpack {
 		}
 	};
 
+	/**
+	 * 連想配列のシリアライズを行うクラス
+	 */
 	class MapSerializer {
 	private:
 		MsgPack::Serializer& _serializer;
+
+		// 文字列
 		void serializeValue(const std::string& value) {
 			std::unique_ptr<MsgPack::Element> _value(new MsgPack::String(value));
 			_serializer << _value;
 		}
+		// プリミティブ型
 		void serializeValue(int32_t value) {
 			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Number((int64_t)value));
 			_serializer << _value;
@@ -74,6 +83,7 @@ namespace ca_msgpack {
 			std::unique_ptr<MsgPack::Element> _value(new MsgPack::Primitive(value));
 			_serializer << _value;
 		}
+		// 配列
 		template <class T>
 		void serializeValue(const std::vector<T>& value) {
 			std::unique_ptr<MsgPack::Element> _header(new MsgPack::ArrayHeader((uint32_t)value.size()));
@@ -82,6 +92,7 @@ namespace ca_msgpack {
 				serializeValue((T)*ite);
 			}
 		}
+		// 連想配列
 		template <class T>
 		void serializeValue(const std::map<std::string, T>& value) {
 			std::unique_ptr<MsgPack::Element> _header(new MsgPack::MapHeader((uint32_t)value.size()));
@@ -91,15 +102,19 @@ namespace ca_msgpack {
 				serializeValue((*ite).second);
 			}
 		}
+		// 任意のオブジェクト
 		template <class T>
 		void serializeValue(const T& value) {
 			value.pack(_serializer);
 		}
+
 	public:
 		MapSerializer(MsgPack::Serializer& serializer, int count) : _serializer(serializer) {
 			std::unique_ptr<MsgPack::Element> _header(new MsgPack::MapHeader(count));
 			_serializer << _header;
 		}
+
+		/** シリアライゼーションの実行 */
 		template<class T>
 		void serialize(const char* key, T value) {
 			std::unique_ptr<MsgPack::Element> _key(new MsgPack::String(key));
@@ -108,6 +123,9 @@ namespace ca_msgpack {
 		}
 	};
 
+	/**
+	 * 連想配列のデシリアライズを行うクラス
+	 */
 	class MapDeserializer {
 	private:
 		typedef void (MapDeserializer::*INIT_MEMBER_FUNC)(void*);
@@ -117,16 +135,17 @@ namespace ca_msgpack {
 			Float, Double, Boolean, String, Object, Map, Array
 		};
 		struct Member {
-			Type type;
-			void* obj;
-			INIT_MEMBER_FUNC initFunc;
-			ADD_MEMBER_FUNC addFunc;
+			Type type; // メンバ変数の型
+			void* obj; // メンバ変数へのポインタ
+			INIT_MEMBER_FUNC initFunc; // 連想配列、もしくは配列を初期化する関数へのポインタ
+			ADD_MEMBER_FUNC addFunc; // 連想配列、もしくは配列への要素追加を行う関数へのポインタ
 			Member() {}
 			Member(Type type, void* obj, INIT_MEMBER_FUNC initFunc = NULL, ADD_MEMBER_FUNC addFunc = NULL)
 				: type(type), obj(obj), initFunc(initFunc), addFunc(addFunc) {}
 		};
 		MsgPack::Deserializer& _deserializer;
 		std::map<std::string, Member> _members;
+
 		bool isString(uint32_t type) {
 			return (type >= MsgPack::Type::FIXSTR && type < MsgPack::Type::NIL)
 				|| type == MsgPack::Type::STR_8
@@ -140,6 +159,7 @@ namespace ca_msgpack {
 			return (type & 0xf0) == MsgPack::Type::FIXARRAY
 				|| type == MsgPack::Type::ARRAY_16 || type == MsgPack::Type::ARRAY_32;
 		}
+
 		void parseObject(Element& header, const char* dir = "");
 		void parseArray(Element& header, const char* dir, Member& member);
 		void parseMap(Element& header, const char* dir, Member& member);
@@ -147,11 +167,14 @@ namespace ca_msgpack {
 		void parseNumber(Element& element, Member& member, const char* key);
 		void parseValue(Element& element, Member& member, const char* key);
 		void value(const char* key, void* obj = NULL);
+
+		/** 配列の読み込みを開始する前の初期化 */
 		template <class T>
 		void initArray(void* p) {
 			std::vector<T>& array = *(std::vector<T>*)p;
 			array.clear();
 		}
+		/** 配列に要素を追加 */
 		template <class T>
 		void addArray(const char* key, const char* shortKey, void* p) {
 			std::vector<T>& array = *(std::vector<T>*)p;
@@ -159,20 +182,25 @@ namespace ca_msgpack {
 			array.push_back(std::move(T()));
 			addMember(key, &array[index]);
 		}
+		/** 連想配列の読み込みを開始する前の初期化 */
 		template <class T>
 		void initMap(void* p) {
 			std::map<std::string, T>& map = *(std::map<std::string, T>*)p;
 			map.clear();
 		}
+		/** 連想配列に要素を追加 */
 		template <class T>
 		void addMap(const char* key, const char* shortKey, void* p) {
 			std::map<std::string, T>& map = *(std::map<std::string, T>*)p;
 			map[shortKey] = std::move(T());
 			addMember(key, &map[shortKey]);
 		}
+
 	public:
 		MapDeserializer(MsgPack::Deserializer& deserializer) : _deserializer(deserializer) {
 		}
+
+		// execute を呼ぶ前に addMember を使って 展開先の構造体のメンバ変数の情報を登録します。
 		void addMember(const char* key, int32_t* obj) {
 			_members[key] = Member(Type::Integer32, obj);
 		}
@@ -212,6 +240,8 @@ namespace ca_msgpack {
 			obj->addMembers(*this, dir.str().c_str());
 			_members[key] = Member(Type::Object, obj);
 		}
+
+		/** デシリアライゼーションの実行 */
 		void execute() {
 			Element header;
 			_deserializer.deserialize(header, false);
@@ -220,9 +250,6 @@ namespace ca_msgpack {
 				oss << "data has no elements.";
 				throw ca_msgpack::MsgPackError(oss.str());
 			}
-			parseObject(header);
-		}
-		void execute(Element& header) {
 			parseObject(header);
 		}
 	};
