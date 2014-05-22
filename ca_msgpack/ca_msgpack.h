@@ -128,7 +128,8 @@ namespace ca_msgpack {
 		MsgPack::Deserializer& _deserializer;
 		std::map<std::string, Member> _members;
 		bool isString(uint32_t type) {
-			return (type & 0xf0) == MsgPack::Type::FIXSTR || type == MsgPack::Type::STR_8
+			return (type >= MsgPack::Type::FIXSTR && type < MsgPack::Type::NIL)
+				|| type == MsgPack::Type::STR_8
 				|| type == MsgPack::Type::STR_16 || type == MsgPack::Type::STR_32;
 		}
 		bool isMap(uint32_t type) {
