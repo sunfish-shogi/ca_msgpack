@@ -13,7 +13,13 @@ namespace ca_msgpack {
 	/**
 	 * 任意の構造体を解析します。
 	 */
-	void MapDeserializer::parseObject(Element& header, const char* dir) {
+	void Deserializer::parseObject(Element& header, const char* dir) {
+		// 更新フラグ
+		auto ite = _updatedFlags.find(dir);
+		if (ite != _updatedFlags.end()) {
+			*(ite->second) = true;
+		}
+
 		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		// 要素の読み込み
 		for (uint32_t i = 0; i < len; i++) {
@@ -34,7 +40,7 @@ namespace ca_msgpack {
 	/**
 	 * 配列(std::vector)を解析します。
 	 */
-	void MapDeserializer::parseArray(Element& header, const char* dir, Member& member) {
+	void Deserializer::parseArray(Element& header, const char* dir, Member& member) {
 		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		// 初期化関数の呼び出し
 		(this->*member.initFunc)(member.obj);
@@ -52,7 +58,7 @@ namespace ca_msgpack {
 	/**
 	 * 連想配列(std::map)を解析します。
 	 */
-	void MapDeserializer::parseMap(Element& header, const char* dir, Member& member) {
+	void Deserializer::parseMap(Element& header, const char* dir, Member& member) {
 		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		// 初期化関数の呼び出し
 		(this->*member.initFunc)(member.obj);
@@ -80,7 +86,7 @@ namespace ca_msgpack {
 	 * 数値を解析します。
 	 */
 	template <class T>
-	void MapDeserializer::parseNumber(Element& element, Member& member, const char* key) {
+	void Deserializer::parseNumber(Element& element, Member& member, const char* key) {
 		T& obj = *(T*)member.obj;
 		MsgPack::Type type = element->getType();
 		if (type >= 0xe0) { // FIXINT
@@ -112,7 +118,7 @@ namespace ca_msgpack {
 	/**
 	 * 文字列かまたはプリミティブ型のデータを解析します。
 	 */
-	void MapDeserializer::parseValue(Element& element, Member& member, const char* key) {
+	void Deserializer::parseValue(Element& element, Member& member, const char* key) {
 		if (member.type == Type::Integer32) {
 			parseNumber<int32_t>(element, member, key);
 		} else if (member.type == Type::Integer32U) {
@@ -135,7 +141,7 @@ namespace ca_msgpack {
 	}
 
 	/** 値の解析を行います。 */
-	void MapDeserializer::value(const char* key, void* obj) {
+	void Deserializer::value(const char* key, void* obj) {
 		// element の読み込み
 		Element element;
 		_deserializer.deserialize(element, false);

@@ -43,9 +43,9 @@ namespace ca_msgpack {
 	};
 
 	/**
-	 * 連想配列のシリアライズを行うクラス
+	 * シリアライズを行うクラス
 	 */
-	class MapSerializer {
+	class Serializer {
 	private:
 		MsgPack::Serializer& _serializer;
 
@@ -109,7 +109,7 @@ namespace ca_msgpack {
 		}
 
 	public:
-		MapSerializer(MsgPack::Serializer& serializer, int count) : _serializer(serializer) {
+		Serializer(MsgPack::Serializer& serializer, int count) : _serializer(serializer) {
 			std::unique_ptr<MsgPack::Element> _header(new MsgPack::MapHeader(count));
 			_serializer << _header;
 		}
@@ -124,12 +124,12 @@ namespace ca_msgpack {
 	};
 
 	/**
-	 * 連想配列のデシリアライズを行うクラス
+	 * デシリアライズを行うクラス
 	 */
-	class MapDeserializer {
+	class Deserializer {
 	private:
-		typedef void (MapDeserializer::*INIT_MEMBER_FUNC)(void*);
-		typedef void (MapDeserializer::*ADD_MEMBER_FUNC)(const char*, const char*, void*);
+		typedef void (Deserializer::*INIT_MEMBER_FUNC)(void*);
+		typedef void (Deserializer::*ADD_MEMBER_FUNC)(const char*, const char*, void*);
 		enum class Type {
 			Integer32, Integer32U, Integer64, Integer64U,
 			Float, Double, Boolean, String, Object, Map, Array
@@ -145,6 +145,7 @@ namespace ca_msgpack {
 		};
 		MsgPack::Deserializer& _deserializer;
 		std::map<std::string, Member> _members;
+		std::map<std::string, bool*> _updatedFlags;
 
 		bool isString(uint32_t type) {
 			return (type >= MsgPack::Type::FIXSTR && type < MsgPack::Type::NIL)
@@ -197,9 +198,13 @@ namespace ca_msgpack {
 		}
 
 	public:
-		MapDeserializer(MsgPack::Deserializer& deserializer) : _deserializer(deserializer) {
+		Deserializer(MsgPack::Deserializer& deserializer) : _deserializer(deserializer) {
 		}
 
+		// 更新フラグを登録します。
+		void addUpdatedFlag(const char* key, bool* flag) {
+			_updatedFlags[key] = flag;
+		}
 		// execute を呼ぶ前に addMember を使って 展開先の構造体のメンバ変数の情報を登録します。
 		void addMember(const char* key, int32_t* obj) {
 			_members[key] = Member(Type::Integer32, obj);
@@ -227,11 +232,11 @@ namespace ca_msgpack {
 		}
 		template <class T>
 		void addMember(const char* key, std::vector<T>* obj) {
-			_members[key] = Member(Type::Array, obj, &MapDeserializer::initArray<T>, &MapDeserializer::addArray<T>);
+			_members[key] = Member(Type::Array, obj, &Deserializer::initArray<T>, &Deserializer::addArray<T>);
 		}
 		template <class T>
 		void addMember(const char* key, std::map<std::string, T>* obj) {
-			_members[key] = Member(Type::Map, obj, &MapDeserializer::initMap<T>, &MapDeserializer::addMap<T>);
+			_members[key] = Member(Type::Map, obj, &Deserializer::initMap<T>, &Deserializer::addMap<T>);
 		}
 		template <class T>
 		void addMember(const char* key, T* obj) {
@@ -256,32 +261,40 @@ namespace ca_msgpack {
 }
 
 #define CA_MSGPACK(...)									\
-void pack(std::streambuf* sb) const { \
-	MsgPack::Serializer s(sb); \
-	pack(s); \
-} \
-void pack(MsgPack::Serializer& serializer) const { \
-	ca_msgpack::MapSerializer mapSerializer(serializer, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)); \
-	BOOST_PP_CAT(BOOST_PP_CAT(MSGPACK_SER_, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)) (__VA_ARGS__),) \
-}\
-void unpack(std::streambuf* sb) { \
-	MsgPack::Deserializer d(sb); \
-	unpack(d); \
-} \
-void unpack(MsgPack::Deserializer& deserializer) { \
-	ca_msgpack::MapDeserializer mapDeserializer(deserializer); \
-	addMembers(mapDeserializer); \
-	mapDeserializer.execute(); \
-} \
-void addMembers(ca_msgpack::MapDeserializer& mapDeserializer, const char* key = "") { \
-	BOOST_PP_CAT(BOOST_PP_CAT(MSGPACK_DES_, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)) (__VA_ARGS__),) \
-} \
-static void addMemberArray(ca_msgpack::Element&, const char*, void*) { \
-} \
-static void addMemberMap(ca_msgpack::Element&, const char*, void*) { \
-} \
+private: \
+	bool ___ca_msgpack_updated___; \
+public: \
+	bool isUpdated() const { \
+		return ___ca_msgpack_updated___; \
+	} \
+	void pack(std::streambuf* sb) const { \
+		MsgPack::Serializer s(sb); \
+		pack(s); \
+	} \
+	void pack(MsgPack::Serializer& s) const { \
+		ca_msgpack::Serializer serializer(s, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)); \
+		BOOST_PP_CAT(BOOST_PP_CAT(MSGPACK_SER_, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)) (__VA_ARGS__),) \
+	}\
+	void unpack(std::streambuf* sb) { \
+		MsgPack::Deserializer d(sb); \
+		unpack(d); \
+	} \
+	void unpack(MsgPack::Deserializer& d) { \
+		ca_msgpack::Deserializer deserializer(d); \
+		addMembers(deserializer); \
+		deserializer.execute(); \
+	} \
+	void addMembers(ca_msgpack::Deserializer& deserializer, const char* key = "") { \
+		___ca_msgpack_updated___ = false; \
+		deserializer.addUpdatedFlag(key, &___ca_msgpack_updated___); \
+		BOOST_PP_CAT(BOOST_PP_CAT(MSGPACK_DES_, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)) (__VA_ARGS__),) \
+	} \
+	static void addMemberArray(ca_msgpack::Element&, const char*, void*) { \
+	} \
+	static void addMemberMap(ca_msgpack::Element&, const char*, void*) { \
+	} \
 
-#define MSGPACK_SER(x)									mapSerializer.serialize(#x, x);
+#define MSGPACK_SER(x)									serializer.serialize(#x, x);
 #define MSGPACK_SER_1(x)								MSGPACK_SER(x)
 #define MSGPACK_SER_2(x, ...)						MSGPACK_SER(x) MSGPACK_SER_1 (__VA_ARGS__)
 #define MSGPACK_SER_3(x, ...)						MSGPACK_SER(x) MSGPACK_SER_2 (__VA_ARGS__)
@@ -333,7 +346,7 @@ static void addMemberMap(ca_msgpack::Element&, const char*, void*) { \
 #define MSGPACK_SER_49(x, ...)					MSGPACK_SER(x) MSGPACK_SER_48(__VA_ARGS__)
 #define MSGPACK_SER_50(x, ...)					MSGPACK_SER(x) MSGPACK_SER_49(__VA_ARGS__)
 
-#define MSGPACK_DES(x)									mapDeserializer.addMember((std::string(key) + '"' + #x + '"').c_str(), &x);
+#define MSGPACK_DES(x)									deserializer.addMember((std::string(key) + '"' + #x + '"').c_str(), &x);
 #define MSGPACK_DES_1(x)								MSGPACK_DES(x)
 #define MSGPACK_DES_2(x, ...)						MSGPACK_DES(x) MSGPACK_DES_1 (__VA_ARGS__)
 #define MSGPACK_DES_3(x, ...)						MSGPACK_DES(x) MSGPACK_DES_2 (__VA_ARGS__)
