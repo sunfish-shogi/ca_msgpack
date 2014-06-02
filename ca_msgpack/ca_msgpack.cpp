@@ -150,6 +150,10 @@ namespace ca_msgpack {
 			oss << "data has no value: " << key;
 			throw ca_msgpack::MsgPackError(oss.str());
 		}
+		// 値が空の場合
+		if (element->getType() == MsgPack::Type::NIL || element->getType() == MsgPack::Type::UNDEFINED) {
+			return;
+		}
 		// 登録されたメンバ情報から探す。
 		auto ite = _members.find(key);
 		if (ite != _members.end()) {
