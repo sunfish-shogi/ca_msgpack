@@ -273,7 +273,7 @@ void Socket::initSocket(bool blockingConnect) {
 	#else
 	unsigned int size = sizeof(localAddr);
 	#endif
-    if(getsockname(handle, reinterpret_cast<struct sockaddr*>(&localAddr), &size) != 0) {
+    if(getsockname(handle, reinterpret_cast<struct sockaddr*>(&localAddr), (socklen_t*)&size) != 0) {
         disconnect();
         throw Exception(Exception::ERROR_GET_SOCK_NAME);
     }
@@ -417,7 +417,7 @@ std::streamsize Socket::receive(char_type* buffer, std::streamsize size) {
 			#else
 			unsigned int addrSize = sizeof(remoteAddr);
 			#endif
-            int result = recvfrom(handle, (char*)buffer, size, 0, reinterpret_cast<struct sockaddr*>(&remoteAddr), &addrSize);
+            int result = recvfrom(handle, (char*)buffer, size, 0, reinterpret_cast<struct sockaddr*>(&remoteAddr), (socklen_t*)&addrSize);
             
             if(result == -1) {
                 portRemote = 0;
@@ -575,7 +575,7 @@ std::shared_ptr<Socket> Socket::accept() {
 	unsigned int addrSize = sizeof(remoteAddr);
 	#endif
     
-    int newHandler = ::accept(handle, reinterpret_cast<struct sockaddr*>(&remoteAddr), &addrSize);
+    int newHandler = ::accept(handle, reinterpret_cast<struct sockaddr*>(&remoteAddr), (socklen_t*)&addrSize);
     if(newHandler == -1) return nullptr;
 
     std::shared_ptr<Socket> client = allocateTcpServersClient(newHandler, &remoteAddr);

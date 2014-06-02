@@ -25,7 +25,7 @@
 #undef max
 #else
 #include <arpa/inet.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
