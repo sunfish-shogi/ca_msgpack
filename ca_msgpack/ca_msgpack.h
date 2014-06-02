@@ -260,7 +260,10 @@ namespace ca_msgpack {
 	};
 }
 
-#define CA_MSGPACK(...)									\
+#define CA_MSGPACK_0()									__CA_MSGPACK__(0)
+#define CA_MSGPACK(...)									__CA_MSGPACK__(__VA_ARGS__, 0)
+
+#define __CA_MSGPACK__(...)									\
 private: \
 	bool ___ca_msgpack_updated___; \
 public: \
@@ -272,7 +275,7 @@ public: \
 		pack(s); \
 	} \
 	void pack(MsgPack::Serializer& s) const { \
-		ca_msgpack::Serializer serializer(s, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)); \
+		ca_msgpack::Serializer serializer(s, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__) - 1); \
 		BOOST_PP_CAT(BOOST_PP_CAT(MSGPACK_SER_, BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)) (__VA_ARGS__),) \
 	}\
 	void unpack(std::streambuf* sb) { \
@@ -295,8 +298,8 @@ public: \
 	} \
 
 #define MSGPACK_SER(x)									serializer.serialize(#x, x);
-#define MSGPACK_SER_1(x)								MSGPACK_SER(x)
-#define MSGPACK_SER_2(x, ...)						MSGPACK_SER(x) MSGPACK_SER_1 (__VA_ARGS__)
+#define MSGPACK_SER_1(x)
+#define MSGPACK_SER_2(x, ...)						MSGPACK_SER(x)
 #define MSGPACK_SER_3(x, ...)						MSGPACK_SER(x) MSGPACK_SER_2 (__VA_ARGS__)
 #define MSGPACK_SER_4(x, ...)						MSGPACK_SER(x) MSGPACK_SER_3 (__VA_ARGS__)
 #define MSGPACK_SER_5(x, ...)						MSGPACK_SER(x) MSGPACK_SER_4 (__VA_ARGS__)
@@ -347,8 +350,8 @@ public: \
 #define MSGPACK_SER_50(x, ...)					MSGPACK_SER(x) MSGPACK_SER_49(__VA_ARGS__)
 
 #define MSGPACK_DES(x)									deserializer.addMember((std::string(key) + '"' + #x + '"').c_str(), &x);
-#define MSGPACK_DES_1(x)								MSGPACK_DES(x)
-#define MSGPACK_DES_2(x, ...)						MSGPACK_DES(x) MSGPACK_DES_1 (__VA_ARGS__)
+#define MSGPACK_DES_1(x)
+#define MSGPACK_DES_2(x, ...)						MSGPACK_DES(x)
 #define MSGPACK_DES_3(x, ...)						MSGPACK_DES(x) MSGPACK_DES_2 (__VA_ARGS__)
 #define MSGPACK_DES_4(x, ...)						MSGPACK_DES(x) MSGPACK_DES_3 (__VA_ARGS__)
 #define MSGPACK_DES_5(x, ...)						MSGPACK_DES(x) MSGPACK_DES_4 (__VA_ARGS__)
