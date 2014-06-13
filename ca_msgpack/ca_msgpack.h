@@ -133,17 +133,15 @@ namespace ca_msgpack {
 			Float, Double, Boolean, String, Object, Map, Array
 		};
 
-		typedef void (Deserializer::*INIT_MEMBER_FUNC)(void*);
 		typedef void (Deserializer::*ADD_MEMBER_FUNC)(const char*, const char*, void*);
 
 		struct Member {
 			Type type; // メンバ変数の型
 			void* obj; // メンバ変数へのポインタ
-			INIT_MEMBER_FUNC initFunc; // 連想配列、もしくは配列を初期化する関数へのポインタ
 			ADD_MEMBER_FUNC addFunc; // 連想配列、もしくは配列への要素追加を行う関数へのポインタ
 			Member() {}
-			Member(Type type, void* obj, INIT_MEMBER_FUNC initFunc = NULL, ADD_MEMBER_FUNC addFunc = NULL)
-				: type(type), obj(obj), initFunc(initFunc), addFunc(addFunc) {}
+			Member(Type type, void* obj, ADD_MEMBER_FUNC addFunc = NULL)
+				: type(type), obj(obj), addFunc(addFunc) {}
 		};
 
 		MsgPack::Deserializer& _deserializer;
@@ -176,13 +174,6 @@ namespace ca_msgpack {
 		void ignoreValue(Element& element, const char* key);
 		void value(const char* key, void* obj = NULL);
 
-		/** 配列の読み込みを開始する前の初期化 */
-		template <class T>
-		void initArray(void* p) {
-			std::vector<T>& array = *(std::vector<T>*)p;
-			array.clear();
-		}
-
 		/** 配列に要素を追加 */
 		template <class T>
 		void addArray(const char* key, const char* shortKey, void* p) {
@@ -190,13 +181,6 @@ namespace ca_msgpack {
 			size_t index = array.size();
 			array.push_back(std::move(T()));
 			addMember(key, &array[index]);
-		}
-
-		/** 連想配列の読み込みを開始する前の初期化 */
-		template <class T>
-		void initMap(void* p) {
-			std::map<std::string, T>& map = *(std::map<std::string, T>*)p;
-			map.clear();
 		}
 
 		/** 連想配列に要素を追加 */
@@ -220,35 +204,45 @@ namespace ca_msgpack {
 		// execute を呼ぶ前に addMember を使って 展開先の構造体のメンバ変数の情報を登録します。
 		void addMember(const char* key, int32_t* obj) {
 			_members[key] = Member(Type::Integer32, obj);
+			*obj = 0;
 		}
 		void addMember(const char* key, uint32_t* obj) {
 			_members[key] = Member(Type::Integer32U, obj);
+			*obj = 0l;
 		}
 		void addMember(const char* key, int64_t* obj) {
 			_members[key] = Member(Type::Integer64, obj);
+			*obj = 0ll;
 		}
 		void addMember(const char* key, uint64_t* obj) {
 			_members[key] = Member(Type::Integer64U, obj);
+			*obj = 0ull;
 		}
 		void addMember(const char* key, float* obj) {
 			_members[key] = Member(Type::Float, obj);
+			*obj = 0.0f;
 		}
 		void addMember(const char* key, double* obj) {
 			_members[key] = Member(Type::Double, obj);
+			*obj = 0.0;
 		}
 		void addMember(const char* key, bool* obj) {
 			_members[key] = Member(Type::Boolean, obj);
+			*obj = false;
 		}
 		void addMember(const char* key, std::string* obj) {
 			_members[key] = Member(Type::String, obj);
+			*obj = "";
 		}
 		template <class T>
 		void addMember(const char* key, std::vector<T>* obj) {
-			_members[key] = Member(Type::Array, obj, &Deserializer::initArray<T>, &Deserializer::addArray<T>);
+			_members[key] = Member(Type::Array, obj, &Deserializer::addArray<T>);
+			obj->clear();
 		}
 		template <class T>
 		void addMember(const char* key, std::map<std::string, T>* obj) {
-			_members[key] = Member(Type::Map, obj, &Deserializer::initMap<T>, &Deserializer::addMap<T>);
+			_members[key] = Member(Type::Map, obj, &Deserializer::addMap<T>);
+			obj->clear();
 		}
 		template <class T>
 		void addMember(const char* key, T* obj) {

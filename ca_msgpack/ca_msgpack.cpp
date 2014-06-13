@@ -44,9 +44,6 @@ namespace ca_msgpack {
 	 */
 	void Deserializer::parseArray(Element& header, const char* dir, Member& member) {
 
-		// 初期化関数の呼び出し
-		(this->*member.initFunc)(member.obj);
-
 		// 要素の読み込み
 		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		for (uint32_t i = 0; i < len; i++) {
@@ -67,9 +64,6 @@ namespace ca_msgpack {
 	 * 連想配列(std::map)を解析します。
 	 */
 	void Deserializer::parseMap(Element& header, const char* dir, Member& member) {
-
-		// 初期化関数の呼び出し
-		(this->*member.initFunc)(member.obj);
 
 		// 要素の読み込み
 		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
