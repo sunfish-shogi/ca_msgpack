@@ -14,14 +14,15 @@ namespace ca_msgpack {
 	 * 任意の構造体を解析します。
 	 */
 	void Deserializer::parseObject(Element& header, const char* dir) {
+
 		// 更新フラグ
 		auto ite = _updatedFlags.find(dir);
 		if (ite != _updatedFlags.end()) {
 			*(ite->second) = true;
 		}
 
-		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		// 要素の読み込み
+		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		for (uint32_t i = 0; i < len; i++) {
 			Element key;
 			_deserializer.deserialize(key, false);
@@ -35,35 +36,45 @@ namespace ca_msgpack {
 			keyStr << dir << (*key);
 			value(keyStr.str().c_str());
 		}
+
 	}
 
 	/**
 	 * 配列(std::vector)を解析します。
 	 */
 	void Deserializer::parseArray(Element& header, const char* dir, Member& member) {
-		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
+
 		// 初期化関数の呼び出し
 		(this->*member.initFunc)(member.obj);
+
 		// 要素の読み込み
+		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		for (uint32_t i = 0; i < len; i++) {
+
 			std::ostringstream key;
 			key << dir << i;
+
 			// 要素の追加
 			(this->*member.addFunc)(key.str().c_str(), NULL, member.obj);
+
 			// 値の解析
 			value(key.str().c_str());
 		}
+
 	}
 
 	/**
 	 * 連想配列(std::map)を解析します。
 	 */
 	void Deserializer::parseMap(Element& header, const char* dir, Member& member) {
-		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
+
 		// 初期化関数の呼び出し
 		(this->*member.initFunc)(member.obj);
+
 		// 要素の読み込み
+		uint32_t len = static_cast<MsgPack::Header*>(header.get())->getLength();
 		for (uint32_t i = 0; i < len; i++) {
+
 			// 連想配列のキーを読み込む
 			Element key;
 			_deserializer.deserialize(key, false);
@@ -75,11 +86,15 @@ namespace ca_msgpack {
 			}
 			std::ostringstream keyStr;
 			keyStr << dir << (*key);
+
 			// 要素の追加
 			(this->*member.addFunc)(keyStr.str().c_str(), static_cast<MsgPack::String*>(key.get())->getStr().c_str(), member.obj);
+
 			// 値の解析
 			value(keyStr.str().c_str());
+
 		}
+
 	}
 
 	/**
@@ -87,14 +102,18 @@ namespace ca_msgpack {
 	 */
 	template <class T>
 	void Deserializer::parseNumber(Element& element, Member& member, const char* key) {
+
 		T& obj = *(T*)member.obj;
 		MsgPack::Type type = element->getType();
+
 		if (type >= 0xe0) { // FIXINT
 			type = MsgPack::Type::INT_8;
 		}
+
 		if (type < 0x80) { // FIXUINT
 			type = MsgPack::Type::UINT_8;
 		}
+
 		switch(type) {
 #define __CAMP_PARSE_NUMBER__(type) (T)static_cast<MsgPack::Number*>(element.get())->getValue<type>()
 			case MsgPack::Type::INT_8: obj = __CAMP_PARSE_NUMBER__(int8_t); break;
@@ -113,12 +132,14 @@ namespace ca_msgpack {
 				throw ca_msgpack::MsgPackError(oss.str());
 #undef __CAMP_PARSE_NUMBER__
 		}
+
 	}
 
 	/**
 	 * 文字列かまたはプリミティブ型のデータを解析します。
 	 */
 	void Deserializer::parseValue(Element& element, Member& member, const char* key) {
+
 		if (member.type == Type::Integer32) {
 			parseNumber<int32_t>(element, member, key);
 		} else if (member.type == Type::Integer32U) {
@@ -138,10 +159,12 @@ namespace ca_msgpack {
 			std::string& obj = *(std::string*)member.obj;
 			obj = static_cast<MsgPack::String*>(element.get())->getStr();
 		}
+
 	}
 
 	/** 値の解析を行います。 */
 	void Deserializer::value(const char* key, void* obj) {
+
 		// element の読み込み
 		Element element;
 		_deserializer.deserialize(element, false);
@@ -150,19 +173,24 @@ namespace ca_msgpack {
 			oss << "data has no value: " << key;
 			throw ca_msgpack::MsgPackError(oss.str());
 		}
+
 		// 値が空の場合
-		if (element->getType() == MsgPack::Type::NIL || element->getType() == MsgPack::Type::UNDEFINED) {
+		if (isNilOrUndef(element->getType())) {
 			return;
 		}
+
 		// 登録されたメンバ情報から探す。
 		auto ite = _members.find(key);
 		if (ite != _members.end()) {
+
 			Member& member = ite->second;
+
 			if (member.type == Type::Object) {
 				// 構造体の場合
 				std::ostringstream dir;
 				dir << key << '/';
 				parseObject(element, dir.str().c_str());
+
 			} else if (member.type == Type::Array || member.type == Type::Map) {
 				// 配列か連想配列の場合
 				std::ostringstream dir;
@@ -172,15 +200,51 @@ namespace ca_msgpack {
 				} else {
 					parseMap(element, dir.str().c_str(), member);
 				}
+
 			} else {
 				// 文字列かプリミティブ型の場合
 				parseValue(element, member, key);
+
 			}
+
 		} else {
-			std::ostringstream oss;
-			oss << "unkown property: " << key;
-			throw ca_msgpack::MsgPackError(oss.str());
+
+			ignoreValue(element, key);
+
 		}
+	}
+
+	/** 要素を読み捨てます。 */
+	void Deserializer::ignoreValue(Element& element, const char* key) {
+
+		if (isNilOrUndef(element->getType())) {
+			// 空の要素
+			return;
+
+		} else if (isArray(element->getType())) {
+			// 配列の場合
+			uint32_t len = static_cast<MsgPack::Header*>(element.get())->getLength();
+			for (uint32_t i = 0; i < len; i++) {
+				Element arrayValue;
+				_deserializer.deserialize(arrayValue, true);
+			}
+
+		} else if (isMap(element->getType())) {
+			// 連想配列の場合
+			uint32_t len = static_cast<MsgPack::Header*>(element.get())->getLength();
+			for (uint32_t i = 0; i < len; i++) {
+				Element mapKey, mapValue;
+				_deserializer.deserialize(mapKey, false);
+				_deserializer.deserialize(mapValue, true);
+			}
+
+		} else {
+
+			Element data;
+			_deserializer.deserialize(data, false);
+
+		}
+
 	}
 
 }
