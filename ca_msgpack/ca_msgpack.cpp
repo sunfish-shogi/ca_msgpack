@@ -235,7 +235,7 @@ namespace ca_msgpack {
 		} else {
 
 			Element data;
-			_deserializer.deserialize(data, false);
+			_deserializer.deserialize(data, true);
 
 		}
 
