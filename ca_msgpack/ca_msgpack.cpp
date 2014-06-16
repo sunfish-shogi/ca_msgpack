@@ -232,11 +232,6 @@ namespace ca_msgpack {
 				_deserializer.deserialize(mapValue, true);
 			}
 
-		} else {
-
-			Element data;
-			_deserializer.deserialize(data, true);
-
 		}
 
 	}
