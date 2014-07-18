@@ -83,25 +83,53 @@ inline void storeInt32(uint8_t* target, int32_t source) {
 
 inline void storeFloat64(uint8_t* target, double source) {
     #if IS_BIG_ENDIAN
-    *reinterpret_cast<double*>(target) = source;
+  	double value = source;
     #else
-    *reinterpret_cast<double*>(target) = change_endian(source);
+    double value = change_endian(source);
+    #endif
+
+    #ifdef ANDROID
+    uint64_t source_uint64 = *(uint64_t*)&source;
+  	uint32_t high = (uint32_t)(source_uint64 >> 32);
+  	uint32_t low = (uint32_t)(source_uint64);
+  	(*(uint32_t*)target) = high;
+  	(*(uint32_t*)(target+4)) = low;
+    #else
+    *reinterpret_cast<double*>(target) = value;
     #endif
 }
 
 inline void storeUint64(uint8_t* target, uint64_t source) {
     #if IS_BIG_ENDIAN
-    *reinterpret_cast<uint64_t*>(target) = source;
+  	uint64_t value = source;
     #else
-    *reinterpret_cast<uint64_t*>(target) = change_endian(source);
+    uint64_t value = change_endian(source);
+    #endif
+
+    #ifdef ANDROID
+  	uint32_t high = (uint32_t)(source >> 32);
+  	uint32_t low = (uint32_t)(source);
+  	(*(uint32_t*)target) = high;
+  	(*(uint32_t*)(target+4)) = low;
+    #else
+    *reinterpret_cast<uint64_t*>(target) = value;
     #endif
 }
 
 inline void storeInt64(uint8_t* target, int64_t source) {
     #if IS_BIG_ENDIAN
-    *reinterpret_cast<int64_t*>(target) = source;
+  	int64_t value = source;
     #else
-    *reinterpret_cast<int64_t*>(target) = change_endian(source);
+    int64_t value = change_endian(source);
+    #endif
+
+    #ifdef ANDROID
+  	uint32_t high = (uint32_t)((uint64_t)source >> 32);
+  	uint32_t low = (uint32_t)((uint64_t)source);
+  	(*(uint32_t*)target) = high;
+  	(*(uint32_t*)(target+4)) = low;
+    #else
+    *reinterpret_cast<int64_t*>(target) = value;
     #endif
 }
 
@@ -155,26 +183,50 @@ inline int32_t loadInt32(const uint8_t* source) {
 }
 
 inline double loadFloat64(const uint8_t* source) {
-    #if IS_BIG_ENDIAN
-    return *reinterpret_cast<const double*>(source);
+    #ifdef ANDROID
+  	uint32_t high = *(const uint32_t*)source;
+  	uint32_t low = *(const uint32_t*)(source+4);
+  	uint64_t source_value = (((uint64_t)high << 32) + low);
     #else
-    return change_endian(*reinterpret_cast<const double*>(source));
+    uint64_t source_value = *reinterpret_cast<const uint64_t*>(source);
+    #endif
+
+    #if IS_BIG_ENDIAN
+    return *(double*)(&source_value);
+    #else
+    return change_endian(*(double*)(&source_value));
     #endif
 }
 
 inline uint64_t loadUint64(const uint8_t* source) {
-    #if IS_BIG_ENDIAN
-    return *reinterpret_cast<const uint64_t*>(source);
+    #ifdef ANDROID
+  	uint32_t high = *(const uint32_t*)source;
+  	uint32_t low = *(const uint32_t*)(source+4);
+  	uint64_t source_value = (((uint64_t)high << 32) + low);
     #else
-    return change_endian(*reinterpret_cast<const uint64_t*>(source));
+    uint64_t source_value = *reinterpret_cast<const uint64_t*>(source);
+    #endif
+
+    #if IS_BIG_ENDIAN
+  	return source_value;
+    #else
+    return change_endian(source_value);
     #endif
 }
 
 inline int64_t loadInt64(const uint8_t* source) {
-    #if IS_BIG_ENDIAN
-    return *reinterpret_cast<const int64_t*>(source);
+    #ifdef ANDROID
+  	uint32_t high = *(const uint32_t*)source;
+  	uint32_t low = *(const uint32_t*)(source+4);
+  	int64_t source_value = (int64_t)(((uint64_t)high << 32) + low);
     #else
-    return change_endian(*reinterpret_cast<const int64_t*>(source));
+    int64_t source_value = *reinterpret_cast<const int64_t*>(source);
+    #endif
+
+    #if IS_BIG_ENDIAN
+  	return source_value;
+    #else
+    return change_endian(source_value);
     #endif
 }
 
