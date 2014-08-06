@@ -54,7 +54,7 @@ inline void storeInt16(uint8_t* target, int16_t source) {
 }
 
 inline void storeFloat32(uint8_t* target, float source) {
-    *reinterpret_cast<float*>(target) = change_endian(source);
+    *reinterpret_cast<uint32_t*>(target) = change_endian((uint32_t)source);
 }
 
 inline void storeUint32(uint8_t* target, uint32_t source) {
@@ -66,37 +66,25 @@ inline void storeInt32(uint8_t* target, int32_t source) {
 }
 
 inline void storeFloat64(uint8_t* target, double source) {
-    #ifdef ANDROID
     uint64_t value_uint64 = *(uint64_t*)&source;
   	uint32_t high = (uint32_t)(value_uint64 >> 32);
   	uint32_t low = (uint32_t)(value_uint64);
   	(*(uint32_t*)target) = change_endian(high);
   	(*(uint32_t*)(target+4)) = change_endian(low);
-    #else
-    *reinterpret_cast<double*>(target) = change_endian(source);
-    #endif
 }
 
 inline void storeUint64(uint8_t* target, uint64_t source) {
-    #ifdef ANDROID
   	uint32_t high = (uint32_t)(source >> 32);
   	uint32_t low = (uint32_t)(source);
   	(*(uint32_t*)target) = change_endian(high);
   	(*(uint32_t*)(target+4)) = change_endian(low);
-    #else
-    *reinterpret_cast<uint64_t*>(target) = change_endian(source);
-    #endif
 }
 
 inline void storeInt64(uint8_t* target, int64_t source) {
-    #ifdef ANDROID
   	uint32_t high = (uint32_t)((uint64_t)source >> 32);
   	uint32_t low = (uint32_t)((uint64_t)source);
   	(*(uint32_t*)target) = change_endian(high);
   	(*(uint32_t*)(target+4)) = change_endian(low);
-    #else
-    *reinterpret_cast<int64_t*>(target) = change_endian(source);
-    #endif
 }
 
 //Read numbers from network endian (big endian)
@@ -129,33 +117,21 @@ inline int32_t loadInt32(const uint8_t* source) {
 }
 
 inline double loadFloat64(const uint8_t* source) {
-    #ifdef ANDROID
   	uint32_t high = change_endian(*(const uint32_t*)source);
   	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	uint64_t source_value = (((uint64_t)high << 32) + low);
-    #else
-    return change_endian(*reinterpret_cast<const double*>(source));
-    #endif               
+  	return (((uint64_t)high << 32) + low);
 }
 
 inline uint64_t loadUint64(const uint8_t* source) {
-    #ifdef ANDROID
   	uint32_t high = change_endian(*(const uint32_t*)source);
   	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	uint64_t source_value = (((uint64_t)high << 32) + low);
-    #else
-    return change_endian(*reinterpret_cast<const uint64_t*>(source));
-    #endif
+  	return (((uint64_t)high << 32) + low);
 }
 
 inline int64_t loadInt64(const uint8_t* source) {
-    #ifdef ANDROID
   	uint32_t high = change_endian(*(const uint32_t*)source);
   	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	int64_t source_value = (int64_t)(((uint64_t)high << 32) + low);
-    #else
-    return change_endian(*reinterpret_cast<const int64_t*>(source));
-    #endif 
+  	return (int64_t)(((uint64_t)high << 32) + low);
 }
 
 namespace MsgPack {
