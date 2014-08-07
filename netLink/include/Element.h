@@ -54,7 +54,7 @@ inline void storeInt16(uint8_t* target, int16_t source) {
 }
 
 inline void storeFloat32(uint8_t* target, float source) {
-    *reinterpret_cast<uint32_t*>(target) = change_endian((uint32_t)source);
+    *reinterpret_cast<uint32_t*>(target) = change_endian(*(uint32_t*)&source);
 }
 
 inline void storeUint32(uint8_t* target, uint32_t source) {
