@@ -116,7 +116,7 @@ namespace ca_msgpack {
 
 		/** シリアライゼーションの実行 */
 		template<class T>
-		void serialize(const char* key, T value) {
+		void serialize(const char* key, const T& value) {
 			std::unique_ptr<MsgPack::Element> _key(new MsgPack::String(key));
 			_serializer << _key;
 			serializeValue(value);
