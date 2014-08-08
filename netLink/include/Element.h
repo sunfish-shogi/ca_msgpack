@@ -23,17 +23,36 @@
 #include <memory>
 #include <inttypes.h>
 
-template <class T>
-inline static T change_endian(T in) {
-	#if IS_BIG_ENDIAN
-	return in;
-	#else
-	T out;
-	for (unsigned i = 0; i < sizeof(T); i++) {
-		((char*)&out)[i] = ((char*)&in)[sizeof(T)-i-1];
-	}
-	return out;
-	#endif
+#if !defined(_WIN32)
+#include <arpa/inet.h>
+#endif
+
+#if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define __LITTLE_ENDIAN__
+# elif __BYTE_ORDER == __BIG_ENDIAN
+#  define __BIG_ENDIAN__
+# elif _WIN32
+#  define __LITTLE_ENDIAN__
+# else
+#  error
+# endif
+#endif
+
+inline static uint16_t change_endian16(const uint16_t& in) {
+#ifdef __BIG_ENDIAN__
+    return in;
+#else
+    return (in << 8) | (in >> 8);
+#endif
+}
+
+inline static uint32_t change_endian32(uint32_t in) {
+#ifdef __BIG_ENDIAN__
+    return in;
+#else
+    return (in << 24) | ((in << 8) & 0x00ff0000) | ((in >> 8) & 0x0000ff00) | (in >> 24);
+#endif
 }
 
 //Store numbers in network endian (big endian)
@@ -46,45 +65,45 @@ inline void storeInt8(uint8_t* target, int8_t source) {
 }
 
 inline void storeUint16(uint8_t* target, uint16_t source) {
-    *reinterpret_cast<uint16_t*>(target) = change_endian(source);
+    *reinterpret_cast<uint16_t*>(target) = change_endian16(source);
 }
 
 inline void storeInt16(uint8_t* target, int16_t source) {
-    *reinterpret_cast<int16_t*>(target) = change_endian(source);
+    *reinterpret_cast<int16_t*>(target) = change_endian16(source);
 }
 
 inline void storeFloat32(uint8_t* target, float source) {
-    *reinterpret_cast<uint32_t*>(target) = change_endian(*(uint32_t*)&source);
+    *reinterpret_cast<uint32_t*>(target) = change_endian32(*(uint32_t*)&source);
 }
 
 inline void storeUint32(uint8_t* target, uint32_t source) {
-    *reinterpret_cast<uint32_t*>(target) = change_endian(source);
+    *reinterpret_cast<uint32_t*>(target) = change_endian32(source);
 }
 
 inline void storeInt32(uint8_t* target, int32_t source) {
-    *reinterpret_cast<int32_t*>(target) = change_endian(source);
+    *reinterpret_cast<int32_t*>(target) = change_endian32(source);
 }
 
 inline void storeFloat64(uint8_t* target, double source) {
     uint64_t value_uint64 = *(uint64_t*)&source;
-  	uint32_t high = (uint32_t)(value_uint64 >> 32);
-  	uint32_t low = (uint32_t)(value_uint64);
-  	(*(uint32_t*)target) = change_endian(high);
-  	(*(uint32_t*)(target+4)) = change_endian(low);
+    uint32_t high = (uint32_t)(value_uint64 >> 32);
+    uint32_t low = (uint32_t)(value_uint64);
+    (*(uint32_t*)target) = change_endian32(high);
+    (*(uint32_t*)(target+4)) = change_endian32(low);
 }
 
 inline void storeUint64(uint8_t* target, uint64_t source) {
-  	uint32_t high = (uint32_t)(source >> 32);
-  	uint32_t low = (uint32_t)(source);
-  	(*(uint32_t*)target) = change_endian(high);
-  	(*(uint32_t*)(target+4)) = change_endian(low);
+    uint32_t high = (uint32_t)(source >> 32);
+    uint32_t low = (uint32_t)(source);
+    (*(uint32_t*)target) = change_endian32(high);
+    (*(uint32_t*)(target+4)) = change_endian32(low);
 }
 
 inline void storeInt64(uint8_t* target, int64_t source) {
-  	uint32_t high = (uint32_t)((uint64_t)source >> 32);
-  	uint32_t low = (uint32_t)((uint64_t)source);
-  	(*(uint32_t*)target) = change_endian(high);
-  	(*(uint32_t*)(target+4)) = change_endian(low);
+    uint32_t high = (uint32_t)((uint64_t)source >> 32);
+    uint32_t low = (uint32_t)((uint64_t)source);
+    (*(uint32_t*)target) = change_endian32(high);
+    (*(uint32_t*)(target+4)) = change_endian32(low);
 }
 
 //Read numbers from network endian (big endian)
@@ -97,41 +116,43 @@ inline int8_t loadInt8(const uint8_t* source) {
 }
 
 inline uint16_t loadUint16(const uint8_t* source) {
-    return change_endian(*reinterpret_cast<const uint16_t*>(source));
+    return change_endian16(*reinterpret_cast<const uint16_t*>(source));
 }
 
 inline int16_t loadInt16(const uint8_t* source) {
-    return change_endian(*reinterpret_cast<const int16_t*>(source));
+    return change_endian16(*reinterpret_cast<const int16_t*>(source));
 }
 
 inline float loadFloat32(const uint8_t* source) {
-    return change_endian(*reinterpret_cast<const float*>(source));
+    uint32_t ui32 = change_endian32(*reinterpret_cast<const uint32_t*>(source));
+    return *(float*)&ui32;
 }
 
 inline uint32_t loadUint32(const uint8_t* source) {
-    return change_endian(*reinterpret_cast<const uint32_t*>(source));
+    return change_endian32(*reinterpret_cast<const uint32_t*>(source));
 }
 
 inline int32_t loadInt32(const uint8_t* source) {
-    return change_endian(*reinterpret_cast<const int32_t*>(source));
+    return change_endian32(*reinterpret_cast<const int32_t*>(source));
 }
 
 inline double loadFloat64(const uint8_t* source) {
-  	uint32_t high = change_endian(*(const uint32_t*)source);
-  	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	return (((uint64_t)high << 32) + low);
+    uint32_t high = change_endian32(*(const uint32_t*)source);
+    uint32_t low = change_endian32(*(const uint32_t*)(source+4));
+    uint64_t ui64 = (((uint64_t)high << 32) + low);
+    return *(double*)&ui64;
 }
 
 inline uint64_t loadUint64(const uint8_t* source) {
-  	uint32_t high = change_endian(*(const uint32_t*)source);
-  	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	return (((uint64_t)high << 32) + low);
+    uint32_t high = change_endian32(*(const uint32_t*)source);
+    uint32_t low = change_endian32(*(const uint32_t*)(source+4));
+    return (((uint64_t)high << 32) + low);
 }
 
 inline int64_t loadInt64(const uint8_t* source) {
-  	uint32_t high = change_endian(*(const uint32_t*)source);
-  	uint32_t low = change_endian(*(const uint32_t*)(source+4));
-  	return (int64_t)(((uint64_t)high << 32) + low);
+    uint32_t high = change_endian32(*(const uint32_t*)source);
+    uint32_t low = change_endian32(*(const uint32_t*)(source+4));
+    return (int64_t)(((uint64_t)high << 32) + low);
 }
 
 namespace MsgPack {
