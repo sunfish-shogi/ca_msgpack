@@ -25,7 +25,7 @@ namespace ca_msgpack {
 	/**
 	 * pack/unpack 中に継続不能なエラーが発生した時に投げられる例外クラス
 	 */
-	class MsgPackError {
+	class MsgPackError : public std::exception {
 	private:
 		std::shared_ptr<std::string> _message;
 	public:
@@ -37,8 +37,11 @@ namespace ca_msgpack {
 		}
 		MsgPackError(const std::string& message) : _message(std::make_shared<std::string>(message)) {
 		}
-		const std::string& getMessage() const {
+		const std::string& getMessage() const _NOEXCEPT {
 			return *_message.get();
+		}
+		virtual const char* what() const _NOEXCEPT override {
+			return _message.get()->c_str();
 		}
 	};
 
