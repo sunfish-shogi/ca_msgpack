@@ -12,6 +12,7 @@
 #define BOOST_PP_VARIADICS 1
 
 #include "MsgPack.h"
+#include <exception>
 #include <iostream>
 #include <vector>
 #include <map>
@@ -37,10 +38,14 @@ namespace ca_msgpack {
 		}
 		MsgPackError(const std::string& message) : _message(std::make_shared<std::string>(message)) {
 		}
-		const std::string& getMessage() const _NOEXCEPT {
+		const std::string& getMessage() const {
 			return *_message.get();
 		}
-		virtual const char* what() const _NOEXCEPT override {
+#ifdef __GNUC__
+		virtual const char* what() const noexcept(true) override {
+#else
+		virtual const char* what() const noexcept override {
+#endif
 			return _message.get()->c_str();
 		}
 	};
