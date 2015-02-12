@@ -1,0 +1,3 @@
+[submodule "netLink"]
+	path = netLink
+	url = git@github.com:sunfish-shogi/netLink.git
