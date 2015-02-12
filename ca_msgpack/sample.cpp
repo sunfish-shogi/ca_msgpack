@@ -10,12 +10,39 @@
 
 // CA_MSGPACKマクロでメンバを指定する。
 struct ObjectB {
+	// constructors
+	ObjectB() {}
+	ObjectB(int integer, const std::string& string)
+	: integer(integer)
+	, string(string) {}
+	// members
 	int integer;
 	std::string string;
+	// msgpack decralation
 	CA_MSGPACK(integer, string);
 };
 
 struct ObjectA {
+	ObjectA() {}
+	ObjectA(int integer,
+			bool boolean,
+			const std::string& string,
+			const ObjectB& objectB,
+			const std::vector<std::string>& stringArray,
+			const std::map<std::string, std::string>& stringMap,
+			const std::vector<ObjectB>& objectBArray,
+			const std::map<std::string, ObjectB>& objectBMap)
+	: integer(integer)
+	, boolean(boolean)
+	, string(string)
+	, objectB(objectB)
+	, stringArray(stringArray)
+	, stringMap(stringMap)
+	, objectBArray(objectBArray)
+	, objectBMap(objectBMap)
+	{
+	}
+	// members
 	int integer;
 	bool boolean;
 	std::string string;
@@ -24,35 +51,34 @@ struct ObjectA {
 	std::map<std::string, std::string> stringMap;
 	std::vector<ObjectB> objectBArray;
 	std::map<std::string, ObjectB> objectBMap;
+	// msgpack decralation
 	CA_MSGPACK(integer, boolean, string, objectB, stringArray, stringMap, objectBArray, objectBMap);
 };
 
 int main(int argc, const char * argv[]) {
-	std::stringbuf inBuf;
+	ObjectA in = {
+		12,
+		true,
+		"foo",
+		{ 52, "bar" },
+		std::vector<std::string>{ "baz1", "baz2", "baz3" },
+		std::map<std::string, std::string>{ { "key1", "value1" }, { "key2", "value2" } },
+		std::vector<ObjectB>{ { 111, "xxx" }, { 222, "yyy" } },
+		std::map<std::string, ObjectB>{ { "111", { 111, "xxx" } }, { "222", { 222, "yyy" } } }
+	};
+	ObjectA out;
+	std::stringbuf buf;
 
 	{
 		// 構造体から pack
-		ObjectA in = {
-			12,
-			true,
-			"foo",
-			{ 52, "bar" },
-			std::vector<std::string>{ "baz1", "baz2", "baz3" },
-			std::map<std::string, std::string>{ { "key1", "value1" }, { "key2", "value2" } },
-			std::vector<ObjectB>{ { 111, "xxx" }, { 222, "yyy" } },
-			std::map<std::string, ObjectB>{ { "111", { 111, "xxx" } }, { "222", { 222, "yyy" } } }
-		};
-
 		std::cout << "pack" << std::endl;
-		in.pack(&inBuf);
+		in.pack(&buf);
 	}
 
-	const std::string& packed = inBuf.str();
-
 	{
-		// テスト
-		std::stringbuf outBuf(packed);
-		MsgPack::Deserializer deserializer(&outBuf);
+		// pack したデータを json フォーマットで出力してみる。
+		std::stringbuf tmpBuf(buf.str());
+		MsgPack::Deserializer deserializer(&tmpBuf);
 		ca_msgpack::Element element;
 		deserializer.deserialize(element, true);
 		std::cout << *element << std::endl;
@@ -61,11 +87,11 @@ int main(int argc, const char * argv[]) {
 	{
 		// 構造体へ unpack
 		std::cout << "unpack" << std::endl;
-		ObjectA out;
-		std::stringbuf outBuf(packed);
-		out.unpack(&outBuf);
+		out.unpack(&buf);
+	}
 
-		// テスト
+	{
+		// もう一度 pack して json フォーマットで出力してみる。
 		std::stringbuf checkBuf;
 		MsgPack::Serializer serializer(&checkBuf);
 		MsgPack::Deserializer deserializer(&checkBuf);

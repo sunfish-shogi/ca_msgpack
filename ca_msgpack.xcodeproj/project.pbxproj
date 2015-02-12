@@ -10,6 +10,7 @@
 		0916F2AB192059670002D8C1 /* ca_msgpack.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0916F2AA192059670002D8C1 /* ca_msgpack.1 */; };
 		0916F3C119205A1F0002D8C1 /* MsgPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0916F39319205A1F0002D8C1 /* MsgPack.cpp */; };
 		0916F3C519205A880002D8C1 /* sample.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0916F3C419205A880002D8C1 /* sample.cpp */; };
+		095F2D261A8C4FEE003F35F9 /* ca_msgpack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 095F2D251A8C4FEE003F35F9 /* ca_msgpack.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +46,7 @@
 		0916F39319205A1F0002D8C1 /* MsgPack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MsgPack.cpp; sourceTree = "<group>"; };
 		0916F3C419205A880002D8C1 /* sample.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sample.cpp; sourceTree = "<group>"; };
 		0916F3C619205C1D0002D8C1 /* ca_msgpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ca_msgpack.h; sourceTree = "<group>"; };
+		095F2D251A8C4FEE003F35F9 /* ca_msgpack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ca_msgpack.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +68,7 @@
 				0916F2A6192059670002D8C1 /* Products */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 1;
 		};
 		0916F2A6192059670002D8C1 /* Products */ = {
 			isa = PBXGroup;
@@ -78,6 +81,7 @@
 		0916F2A7192059670002D8C1 /* ca_msgpack */ = {
 			isa = PBXGroup;
 			children = (
+				095F2D251A8C4FEE003F35F9 /* ca_msgpack.cpp */,
 				0916F3C619205C1D0002D8C1 /* ca_msgpack.h */,
 				0916F3C419205A880002D8C1 /* sample.cpp */,
 				0916F2AA192059670002D8C1 /* ca_msgpack.1 */,
@@ -176,6 +180,7 @@
 			files = (
 				0916F3C119205A1F0002D8C1 /* MsgPack.cpp in Sources */,
 				0916F3C519205A880002D8C1 /* sample.cpp in Sources */,
+				095F2D261A8C4FEE003F35F9 /* ca_msgpack.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,6 +298,7 @@
 				0916F2B0192059670002D8C1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
